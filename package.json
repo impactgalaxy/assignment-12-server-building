@@ -1,0 +1,18 @@
+{
+  "name": "assignment-12-server",
+  "version": "1.0.0",
+  "description": "Application is made by Nur Mohammad Palash.This is only for final project in Programmin Herro web development course.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nur Mohammad Palash",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongodb": "^6.7.0",
+    "nodemailer": "^6.9.13"
+  }
+}
