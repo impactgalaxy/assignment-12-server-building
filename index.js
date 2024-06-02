@@ -57,8 +57,14 @@ async function run() {
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
 
     app.get("/apartments", async (req, res) => {
-      const result = await apartmentsCollection.find().toArray();
+      const qu = req.query.pageNumber
+      console.log(qu);
+      const result = await apartmentsCollection.find().skip(qu *6).limit(6).toArray();
       res.send(result);
+    })
+    app.get("/apartmentsCount", async (req, res) => {
+      const result = await apartmentsCollection.estimatedDocumentCount();
+      res.send({result});
     })
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
