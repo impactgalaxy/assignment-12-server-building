@@ -4,6 +4,7 @@
   "description": "Application is made by Nur Mohammad Palash.This is only for final project in Programmin Herro web development course.",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Nur Mohammad Palash",

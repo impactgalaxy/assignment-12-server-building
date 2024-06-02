@@ -7,8 +7,16 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const port = process.env.PORT || 5000;
 
-const app = express()
-app.use(cors())
+const app = express();
+const corsObj = {
+    origin: [
+      "http://localhost:5173",
+  ],
+  methods: 'GET,POST,PUT,DELETE',
+  allowedHeaders: 'Content-Type,Authorization',
+  credentials: true // allow credentials (cookies)
+  }
+app.use(cors(corsObj))
 app.use(express.json())
 // sendMail 
 const sendMail = async (receiver, message) => {
@@ -55,16 +63,20 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
+    const usersCollection = client.db("assignment_12").collection("users");
 
     app.get("/apartments", async (req, res) => {
-      const qu = req.query.pageNumber
-      console.log(qu);
+      const qu = req.query.pageNumber;
       const result = await apartmentsCollection.find().skip(qu *6).limit(6).toArray();
       res.send(result);
     })
     app.get("/apartmentsCount", async (req, res) => {
       const result = await apartmentsCollection.estimatedDocumentCount();
       res.send({result});
+    })
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
     })
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
