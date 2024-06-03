@@ -64,6 +64,8 @@ async function run() {
     // Send a ping to confirm a successful connection
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
     const usersCollection = client.db("assignment_12").collection("users");
+    const announcementsCollection = client.db("assignment_12").collection("announcements");
+
 
     app.get("/apartments", async (req, res) => {
       const qu = req.query.pageNumber;
@@ -76,6 +78,13 @@ async function run() {
     })
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
+      res.send(result);
+    })
+
+    // admin api only
+    app.post("/announcements", async (req, res) => {
+      const message = req.body;
+      const result = await announcementsCollection.insertOne(message);
       res.send(result);
     })
     await client.db("admin").command({ ping: 1 });
