@@ -64,7 +64,7 @@ async function run() {
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
     const usersCollection = client.db("assignment_12").collection("users");
     const announcementsCollection = client.db("assignment_12").collection("announcements");
-    const contractedCollection = client.db("assignment_12").collection("agreements");
+    const agreementsCollection = client.db("assignment_12").collection("agreements");
 
 
     app.get("/apartments", async (req, res) => {
@@ -93,11 +93,17 @@ async function run() {
     
     })
     // contracted api or agreement api
-    app.post("/contracted-apartment", async (req, res) => {
+    app.post("/agreement-apartment", async (req, res) => {
       const agreementInfo = req.body;
-      const result = await contractedCollection.insertOne(agreementInfo);
+      const result = await agreementsCollection.insertOne(agreementInfo);
       res.send(result);
     })
+    app.get("/agreement-apartment", async (req, res) => {
+      const result = await agreementsCollection.find().toArray()
+      res.send(result);
+    })
+
+
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
