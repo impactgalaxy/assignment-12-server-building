@@ -64,6 +64,7 @@ async function run() {
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
     const usersCollection = client.db("assignment_12").collection("users");
     const announcementsCollection = client.db("assignment_12").collection("announcements");
+    const contractedCollection = client.db("assignment_12").collection("agreements");
 
 
     app.get("/apartments", async (req, res) => {
@@ -71,6 +72,14 @@ async function run() {
       const result = await apartmentsCollection.find().skip(qu *6).limit(6).toArray();
       res.send(result);
     })
+    // single apartment
+    app.get("/apartment/:id", async (req, res) => {
+      const id = req.params.id;
+      const findApartment = { _id: new ObjectId(id) };
+      const result = await apartmentsCollection.findOne(findApartment)
+      res.send(result);
+    })
+    // apartment count
     app.get("/apartmentsCount", async (req, res) => {
       const result = await apartmentsCollection.estimatedDocumentCount();
       res.send({result});
@@ -82,6 +91,12 @@ async function run() {
       const result = await usersCollection.insertOne(userDoc);
       res.send(result);
     
+    })
+    // contracted api or agreement api
+    app.post("/contracted-apartment", async (req, res) => {
+      const agreementInfo = req.body;
+      const result = await contractedCollection.insertOne(agreementInfo);
+      res.send(result);
     })
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
