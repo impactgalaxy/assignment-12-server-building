@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -9,38 +10,36 @@ const port = process.env.PORT || 5000;
 
 const app = express();
 const corsObj = {
-    origin: [
-      "http://localhost:5173",
-  ],
-  methods: 'GET,POST,PUT,DELETE',
-  allowedHeaders: 'Content-Type,Authorization',
+  origin: ["http://localhost:5173"],
+  methods: ['GET,POST,PUT,DELETE,PATCH,OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true // allow credentials (cookies)
   }
 app.use(cors(corsObj))
 app.use(express.json())
-// sendMail 
-const sendMail = async (receiver, message) => {
-  const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // Use `true` for port 465, `false` for all other ports
+
+// email transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail", // Use `true` for port 465, `false` for all other ports
   auth: {
     user: process.env.GMAIL,
     pass: process.env.GMAIL_PASS,
   },
   });
-  
+
+// sendMail 
+const sendMail = async (receiver, message) => {
     const info = await transporter.sendMail({
     from: `Build Nest <${process.env.GMAIL}>`, // sender address
     to: `${receiver}`, // list of receivers
     subject: `${message} ✔`, // Subject line
     html: "Thanks for your kind referer", // html body
   });
-
-  // console.log("Message sent: %s", info.messageId);
+  console.log("Message sent: %s", info.messageId);
 }
 app.post("/sendMail", async (req, res) => {
-    const { receiverEmail } = req.body;    
+  const { receiverEmail } = req.body;
+  console.log(receiverEmail);
   const result = await sendMail(receiverEmail, "Registration")
   res.send({message: "Email send successfully", result})
 })
@@ -76,10 +75,33 @@ async function run() {
       const result = await apartmentsCollection.estimatedDocumentCount();
       res.send({result});
     })
+
+    // user related api start
+    app.post("/create-users", async (req, res) => {
+      const userDoc = req.body;
+      const result = await usersCollection.insertOne(userDoc);
+      res.send(result);
+    
+    })
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     })
+
+    app.patch("/delete-member/:id", async (req, res) => {
+      const doc = req.body;
+      const id = req.params.id;
+      console.log(doc, id);
+      const query = { _id: new ObjectId(id) };
+      const changeRole = {
+        $set: doc
+      }
+      const result = await usersCollection.updateOne(query, changeRole)
+      res.send(result);
+
+    })
+    // user related api end
+
 
     // admin api only
     app.post("/announcements", async (req, res) => {
