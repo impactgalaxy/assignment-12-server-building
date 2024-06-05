@@ -95,11 +95,13 @@ async function run() {
     // contracted api or agreement api
     app.post("/agreement-apartment", async (req, res) => {
       const agreementInfo = req.body;
-      const { uid } = req.query;
-      const isExist = await agreementsCollection.findOne({ contractor_uid: uid });
+      const { apartment_id, uid } = req.query;
+      console.log(apartment_id, uid);
+      const isExist = await agreementsCollection.findOne({contractor_uid: uid });
       if (isExist) {
-       return res.send({message: "You have already agreement for apartment"})
+       return res.send({message: "You have already agreement for apartment this apartment"})
       }
+      await apartmentsCollection.updateOne({_id: new ObjectId(apartment_id)}, {$set: {apartment_booked: "booked"}}, {upsert: true})
       const result = await agreementsCollection.insertOne(agreementInfo);
       res.send(result);
     })
@@ -113,6 +115,33 @@ async function run() {
       const query = { contractor_uid: id };
       const result = await agreementsCollection.findOne(query);
       res.send(result);
+    })
+    app.patch("/agreement-status", async (req, res) => {
+      const { agreement_id, uid , status,role, isAccept} = req.query;
+      console.log(agreement_id, uid, status, role, isAccept);
+      const userQuery = { uid } 
+      // const findUser = await usersCollection.findOne(userQuery);
+      const updateRole = {
+        $set: {
+          role: role,
+        }
+      }
+      const result = await usersCollection.updateOne(userQuery, updateRole);
+
+      const requestQuery = { _id: new ObjectId(agreement_id) };
+
+      const updateRequestQuery = {
+        $set: {
+          status,
+          isAccept,
+          accept_at: new Date().toUTCString()
+        }
+      }
+      const result2 = await agreementsCollection.updateOne(requestQuery, updateRequestQuery, { upsert: true })
+      
+      res.send({result, result2})
+
+
     })
 
 
