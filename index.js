@@ -95,11 +95,23 @@ async function run() {
     // contracted api or agreement api
     app.post("/agreement-apartment", async (req, res) => {
       const agreementInfo = req.body;
+      const { uid } = req.query;
+      const isExist = await agreementsCollection.findOne({ contractor_uid: uid });
+      if (isExist) {
+       return res.send({message: "You have already agreement for apartment"})
+      }
       const result = await agreementsCollection.insertOne(agreementInfo);
       res.send(result);
     })
     app.get("/agreement-apartment", async (req, res) => {
       const result = await agreementsCollection.find().toArray()
+      res.send(result);
+    })
+    // single request
+    app.get("/agreement-apartment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { contractor_uid: id };
+      const result = await agreementsCollection.findOne(query);
       res.send(result);
     })
 
@@ -112,7 +124,6 @@ async function run() {
     app.patch("/delete-member/:id", async (req, res) => {
       const doc = req.body;
       const id = req.params.id;
-      console.log(doc, id);
       const query = { _id: new ObjectId(id) };
       const changeRole = {
         $set: doc
