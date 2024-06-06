@@ -63,6 +63,7 @@ async function run() {
     const usersCollection = client.db("assignment_12").collection("users");
     const announcementsCollection = client.db("assignment_12").collection("announcements");
     const agreementsCollection = client.db("assignment_12").collection("agreements");
+    const couponsCollection = client.db("assignment_12").collection("coupons");
 
 
     app.get("/apartments", async (req, res) => {
@@ -187,6 +188,15 @@ async function run() {
       const query = { _id: new ObjectId(id) }
       const result = await announcementsCollection.deleteOne(query);
       res.send(result)
+    })
+    app.get("/coupons", async (req, res) => {
+      const result = await couponsCollection.find().toArray();
+      res.send(result);
+    })
+    app.post("/create-coupons", async (req, res) => {
+      const couponDoc = req.body;
+      const result = await couponsCollection.insertOne(couponDoc)
+      res.send(result);
     })
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
