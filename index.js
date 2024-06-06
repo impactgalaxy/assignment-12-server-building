@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -35,11 +34,10 @@ const sendMail = async (receiver, message) => {
     subject: `${message} ✔`, // Subject line
     html: "Thanks for your kind referer", // html body
   });
-  console.log("Message sent: %s", info.messageId);
+  // console.log("Message sent: %s", info.messageId);
 }
 app.post("/sendMail", async (req, res) => {
   const { receiverEmail } = req.body;
-  console.log(receiverEmail);
   const result = await sendMail(receiverEmail, "Registration")
   res.send({message: "Email send successfully", result})
 })
@@ -95,13 +93,12 @@ async function run() {
     // contracted api or agreement api
     app.post("/agreement-apartment", async (req, res) => {
       const agreementInfo = req.body;
-      const { apartment_id, uid } = req.query;
-      console.log(apartment_id, uid);
+      const {uid } = req.query;
       const isExist = await agreementsCollection.findOne({contractor_uid: uid });
       if (isExist) {
        return res.send({message: "You have already agreement for apartment this apartment"})
       }
-      await apartmentsCollection.updateOne({_id: new ObjectId(apartment_id)}, {$set: {apartment_booked: "booked"}}, {upsert: true})
+      
       const result = await agreementsCollection.insertOne(agreementInfo);
       res.send(result);
     })
@@ -116,19 +113,30 @@ async function run() {
       const result = await agreementsCollection.findOne(query);
       res.send(result);
     })
+    
+    
     app.patch("/agreement-status", async (req, res) => {
-      const { agreement_id, uid , status,role, isAccept} = req.query;
-      console.log(agreement_id, uid, status, role, isAccept);
+      const { agreement_id, uid, status, role, isAccept, apartment_id } = req.query;
       const userQuery = { uid } 
-      // const findUser = await usersCollection.findOne(userQuery);
+      const apartmentQuery = { _id: new ObjectId(apartment_id) };
+      const requestQuery = { _id: new ObjectId(agreement_id) };
+
+      if (isAccept === "false") {
+        const deleteRequest = await agreementsCollection.deleteOne(requestQuery)
+        return res.send(deleteRequest);
+      }
+    
       const updateRole = {
         $set: {
           role: role,
         }
       }
-      const result = await usersCollection.updateOne(userQuery, updateRole);
+      const result = await usersCollection.updateOne(userQuery, updateRole);    
 
-      const requestQuery = { _id: new ObjectId(agreement_id) };
+      
+      await apartmentsCollection.updateOne(apartmentQuery, {$set: {apartment_booked: "booked"}}, {upsert: true})
+
+      
 
       const updateRequestQuery = {
         $set: {
@@ -176,7 +184,6 @@ async function run() {
     })
     app.delete("/delete-announcement/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const query = { _id: new ObjectId(id) }
       const result = await announcementsCollection.deleteOne(query);
       res.send(result)
