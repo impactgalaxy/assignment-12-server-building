@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const stripe = require("stripe")(process.env.STRIPE_SK);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 
@@ -193,11 +194,56 @@ async function run() {
       const result = await couponsCollection.find().toArray();
       res.send(result);
     })
+    // get my coupon
+    app.get("/getMyCoupon", async (req, res) => {
+      const { id, uid } = req.query;
+      
+      console.log(uid);
+      const updateDoc = {
+        $set: {
+          generate_coupon: true,
+          generate_time: new Date().toUTCString()
+        }
+      }
+      await usersCollection.updateOne({uid}, updateDoc, {upsert: true})
+      const result = await couponsCollection.findOne({ id: id })
+      res.send(result)
+    })
+    app.get("/validate-coupon", async (req, res) => {
+      const { coupon_code } = req.query;
+      
+      const result = await couponsCollection.findOne({coupon_code})
+      res.send(result);
+    })
     app.post("/create-coupons", async (req, res) => {
       const couponDoc = req.body;
       const result = await couponsCollection.insertOne(couponDoc)
       res.send(result);
     })
+    app.get("/count-coupons", async (req, res) => {
+      const result = await couponsCollection.estimatedDocumentCount();
+      res.send({ result });
+    })
+
+    // make payment intent
+
+    app.post("/create-payment-intent", async (req, res) => {
+  const { price } = req.body;
+
+  // Create a PaymentIntent with the order amount and currency
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: price,
+    currency: "usd",
+    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+
+  res.send({
+    clientSecret: paymentIntent.client_secret,
+  });
+});
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
