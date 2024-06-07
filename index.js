@@ -65,6 +65,7 @@ async function run() {
     const announcementsCollection = client.db("assignment_12").collection("announcements");
     const agreementsCollection = client.db("assignment_12").collection("agreements");
     const couponsCollection = client.db("assignment_12").collection("coupons");
+    const paymentHistoryCollection = client.db("assignment_12").collection("paymentHistory");
 
 
     app.get("/apartments", async (req, res) => {
@@ -209,12 +210,12 @@ async function run() {
       const result = await couponsCollection.findOne({ id: id })
       res.send(result)
     })
-    app.get("/validate-coupon", async (req, res) => {
-      const { coupon_code } = req.query;
+    // app.get("/validate-coupon", async (req, res) => {
+    //   const { coupon_code } = req.query;
       
-      const result = await couponsCollection.findOne({coupon_code})
-      res.send(result);
-    })
+    //   const result = await couponsCollection.findOne({coupon_code})
+    //   res.send(result);
+    // })
     app.post("/create-coupons", async (req, res) => {
       const couponDoc = req.body;
       const result = await couponsCollection.insertOne(couponDoc)
@@ -225,25 +226,57 @@ async function run() {
       res.send({ result });
     })
 
-    // make payment intent
-
+    // calculate payment price
+    const calculatePrice = async( coupon_code, price) => {
+           
+      const result = await couponsCollection.findOne({ coupon_code })
+      if (result === null) {
+        return price * 100;
+      } else {
+        const discountPrice = price - (result.discount / 100) * price;
+        return discountPrice * 100;
+      }
+    }
+// make payment
     app.post("/create-payment-intent", async (req, res) => {
-  const { price } = req.body;
-
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: price,
+      const { coupon_code, price } = req.body;
+      const payablePrice = await calculatePrice(coupon_code, price);
+      
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({  
+      
+    amount: payablePrice,
     currency: "usd",
     // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
     automatic_payment_methods: {
       enabled: true,
     },
   });
-
   res.send({
     clientSecret: paymentIntent.client_secret,
+    payablePrice
+    
   });
-});
+  });
+    // save payment history
+    app.post("/payment-history", async (req, res) => {
+      const {  history } = req.body;      
+      const paymentHistory = await paymentHistoryCollection.insertOne(history)
+      res.send(paymentHistory)
+    })
+    // retrieve history by client
+    app.get("/payment-history", async (req, res) => {
+      const { uid, month } = req.query;
+      console.log(uid, month);
+      let query = {}
+      if (month) {
+        query = {uid, month}
+      } else {
+        query = {uid}
+      }
+      const result = await paymentHistoryCollection.find(query).toArray();      
+      res.send(result)
+    })
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
