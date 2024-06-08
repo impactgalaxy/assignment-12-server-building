@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SK);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
@@ -60,13 +61,36 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
+    // DATABASE AND IT'S COLLECTIONS START
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
     const usersCollection = client.db("assignment_12").collection("users");
     const announcementsCollection = client.db("assignment_12").collection("announcements");
     const agreementsCollection = client.db("assignment_12").collection("agreements");
     const couponsCollection = client.db("assignment_12").collection("coupons");
     const paymentHistoryCollection = client.db("assignment_12").collection("paymentHistory");
-
+    // DATABASE AND IT'S COLLECTIONS END
+    
+    // middleware 
+    const verifyToken = (req, res, next) => {
+      
+      if (!req.headers.authorization) {
+       return res.status(401).send({message: "unauthorized"})
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({message: "unauthorized"})
+        }
+        req.decoded = decoded;
+        next();
+      })
+      
+    }
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.TOKEN_SECRET, { expiresIn: "1h" });
+      res.send({ token });
+    })
 
     app.get("/apartments", async (req, res) => {
       const qu = req.query.pageNumber;
@@ -191,7 +215,9 @@ async function run() {
       const result = await announcementsCollection.deleteOne(query);
       res.send(result)
     })
-    app.get("/coupons", async (req, res) => {
+    app.get("/coupons", verifyToken, async (req, res) => {
+      console.log(req.decoded);
+      
       const result = await couponsCollection.find().toArray();
       res.send(result);
     })
@@ -210,12 +236,7 @@ async function run() {
       const result = await couponsCollection.findOne({ id: id })
       res.send(result)
     })
-    // app.get("/validate-coupon", async (req, res) => {
-    //   const { coupon_code } = req.query;
-      
-    //   const result = await couponsCollection.findOne({coupon_code})
-    //   res.send(result);
-    // })
+    
     app.post("/create-coupons", async (req, res) => {
       const couponDoc = req.body;
       const result = await couponsCollection.insertOne(couponDoc)
@@ -267,10 +288,11 @@ async function run() {
     // retrieve history by client
     app.get("/payment-history", async (req, res) => {
       const { uid, month } = req.query;
-      console.log(uid, month);
+      const regEx = { $regex: month, $options: "i" }
+      console.log(regEx);
       let query = {}
       if (month) {
-        query = {uid, month}
+        query = {uid, month:regEx}
       } else {
         query = {uid}
       }
