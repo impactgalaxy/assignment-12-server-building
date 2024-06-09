@@ -56,6 +56,8 @@ const client = new MongoClient(uri, {
   }
 });
 
+
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -69,23 +71,61 @@ async function run() {
     const couponsCollection = client.db("assignment_12").collection("coupons");
     const paymentHistoryCollection = client.db("assignment_12").collection("paymentHistory");
     // DATABASE AND IT'S COLLECTIONS END
-    
-    // middleware 
+
+    // get user role
+
+    // middleware
     const verifyToken = (req, res, next) => {
-      
       if (!req.headers.authorization) {
-       return res.status(401).send({message: "unauthorized"})
+       return res.status(401).send({message: "root unauthorized"})
       }
       const token = req.headers.authorization.split(" ")[1];
       jwt.verify(token, process.env.TOKEN_SECRET, (err, decoded) => {
         if (err) {
-          return res.status(401).send({message: "unauthorized"})
+          return res.status(401).send({message: "error unauthorized"})
         }
         req.decoded = decoded;
         next();
       })
       
+}
+    const verifyAdmin = async(req, res, next) => {
+      const { uid } = req.decoded;
+      const user = await usersCollection.findOne({ uid });
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({message: "forbidden"})
+      }
+      next()
     }
+
+
+    app.get("/users/admin/:uid", verifyToken, async (req, res) => {
+      
+      const { uid } = req.params;
+      if (req.decoded.uid !== uid) {
+        return res.status(403).send({ message: "Forbidden" })
+      }
+      const user = await usersCollection.findOne({ uid });
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin"
+      }
+      res.send({ admin });
+    });
+
+    app.get("/users/role/:uid", verifyToken,async (req, res) => {
+      const { uid } = req.params;
+      if (req.decoded.uid !== uid) {
+        return res.status(403).send({ message: "Forbidden" })
+      }
+      const user = await usersCollection.findOne({ uid });
+      const role = user?.role;
+      res.send({ role });
+    })
+
+
+    
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.TOKEN_SECRET, { expiresIn: "1h" });
@@ -185,7 +225,7 @@ async function run() {
       res.send(result);
     })
 
-    app.patch("/delete-member/:id", async (req, res) => {
+    app.patch("/delete-member/:id",verifyToken,verifyAdmin, async (req, res) => {
       const doc = req.body;
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -200,7 +240,16 @@ async function run() {
 
 
     // admin api only
-    app.post("/announcements", async (req, res) => {
+    app.get("/admin-query",verifyToken, verifyAdmin, async (req, res) => {
+      
+      const allUsers = await usersCollection.find().toArray();
+      const allApartments = await apartmentsCollection.find().toArray();
+      const totalAmount = await paymentHistoryCollection.find().toArray();
+      const amount = totalAmount.reduce((sum, acc)=> sum + acc.amount, 0)
+      res.send({ allUsers, allApartments, amount });
+
+    })
+    app.post("/announcements",verifyToken, verifyAdmin, async (req, res) => {
       const message = req.body;
       const result = await announcementsCollection.insertOne(message);
       res.send(result);
@@ -209,23 +258,25 @@ async function run() {
       const result = await announcementsCollection.find().toArray();
       res.send(result);
     })
-    app.delete("/delete-announcement/:id", async (req, res) => {
+    app.delete("/delete-announcement/:id",verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await announcementsCollection.deleteOne(query);
       res.send(result)
     })
-    app.get("/coupons", verifyToken, async (req, res) => {
-      console.log(req.decoded);
-      
+    app.get("/coupons", verifyToken, verifyAdmin,async (req, res) => {      
       const result = await couponsCollection.find().toArray();
       res.send(result);
     })
+
+
     // get my coupon
-    app.get("/getMyCoupon", async (req, res) => {
+    app.get("/getMyCoupon",verifyToken, async (req, res) => {
       const { id, uid } = req.query;
+      if (req.decoded.uid !== uid) {
+        return res.status(403).send({message: "Forbidden"})
+      }
       
-      console.log(uid);
       const updateDoc = {
         $set: {
           generate_coupon: true,
@@ -237,7 +288,7 @@ async function run() {
       res.send(result)
     })
     
-    app.post("/create-coupons", async (req, res) => {
+    app.post("/create-coupons",verifyToken,verifyAdmin, async (req, res) => {
       const couponDoc = req.body;
       const result = await couponsCollection.insertOne(couponDoc)
       res.send(result);
@@ -281,15 +332,18 @@ async function run() {
   });
     // save payment history
     app.post("/payment-history", async (req, res) => {
-      const {  history } = req.body;      
+      const  history  = req.body;
       const paymentHistory = await paymentHistoryCollection.insertOne(history)
       res.send(paymentHistory)
     })
     // retrieve history by client
-    app.get("/payment-history", async (req, res) => {
+    app.get("/payment-history", verifyToken, async (req, res) => {
+      
       const { uid, month } = req.query;
+      if (req.decoded.uid !== uid) {
+        return res.status(403).send({message: "forbidden"})
+      }
       const regEx = { $regex: month, $options: "i" }
-      console.log(regEx);
       let query = {}
       if (month) {
         query = {uid, month:regEx}
@@ -299,8 +353,8 @@ async function run() {
       const result = await paymentHistoryCollection.find(query).toArray();      
       res.send(result)
     })
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
