@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 
 const app = express();
 const corsObj = {
-  origin: ["http://localhost:5173"],
+  origin: ["http://localhost:5173", "https://assignment-12-buildnest.web.app"],
   methods: ['GET,POST,PUT,DELETE,PATCH,OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true // allow credentials (cookies)
@@ -60,9 +60,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
-    // Send a ping to confirm a successful connection
+    
     // DATABASE AND IT'S COLLECTIONS START
     const apartmentsCollection = client.db("assignment_12").collection("apartments");
     const usersCollection = client.db("assignment_12").collection("users");
@@ -72,7 +70,6 @@ async function run() {
     const paymentHistoryCollection = client.db("assignment_12").collection("paymentHistory");
     // DATABASE AND IT'S COLLECTIONS END
 
-    // get user role
 
     // middleware
     const verifyToken = (req, res, next) => {
@@ -125,7 +122,7 @@ async function run() {
     })
 
 
-    
+    // jwt for web token
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.TOKEN_SECRET, { expiresIn: "1h" });
